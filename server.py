@@ -2,7 +2,7 @@
 
 import socket
 import re
-from handler import handler
+from static_handler import handler
 
 HOST = '127.0.0.1'
 PORT = 8080
@@ -46,6 +46,7 @@ def connection_handler(socket):
                 request.set_body(buffer[body_start:body_start+body_length])
                 break
         conn.sendall(handler(request))
+
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     s.bind((HOST, PORT))
