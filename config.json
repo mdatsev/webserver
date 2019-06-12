@@ -1,8 +1,11 @@
 {
     "host": "127.0.0.1",
     "port": 8080,
-    "handler": "static",
+    "name": "webserver",
+    "handler": "wsgi",
     "handler_opts": {
-        "root_dir": "/home/marti/dev/webserver/test"
+        "application": "/home/marti/dev/webserver/test/app.py",
+        "name": "webserver",
+        "port": "8080"        
     }
 }

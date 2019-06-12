@@ -10,7 +10,11 @@ handler_type = config.get('handler', 'static')
 handler_opts = config.get('handler_opts', {})
 
 if handler_type == 'static':
-    from static_handler import handler
+    from static_handler import get_handler
+elif handler_type == 'wsgi':
+    from wsgi_handler import get_handler
+
+handler = get_handler(handler_opts)
 
 class HTTPRequest:
     def __init__(self, method, uri, http_version, headers):
@@ -50,7 +54,7 @@ def connection_handler(socket):
             if body_start and len(data) >= body_start + body_length:
                 request.set_body(buffer[body_start:body_start+body_length])
                 break
-        conn.sendall(handler(request, handler_opts))
+        conn.sendall(handler(request))
 
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
