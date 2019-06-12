@@ -1,8 +1,12 @@
 import os, sys
 import importlib.util
+import io
 from utils import get_path
 
 def load_application(path):
+    module_dir = os.path.dirname(path)
+    sys.path.append(module_dir)
+    os.chdir(module_dir)
     spec = importlib.util.spec_from_file_location('application', path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -12,7 +16,7 @@ def handler(request):
     global BASE_ENV
     env = dict(BASE_ENV)
     env['REQUEST_METHOD'] = request.method
-    env['PATH_INFO'] = get_path(request.uri)
+    env['PATH_INFO'] = '/' + get_path(request.uri)
     env['SERVER_PROTOCOL'] = request.http_version
     for name, value in request.headers.items():
         env['HTTP_' + name.upper().replace('-', '_')] = value
