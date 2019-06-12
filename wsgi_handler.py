@@ -1,5 +1,6 @@
 import os, sys
 import importlib.util
+from utils import get_path
 
 def load_application(path):
     spec = importlib.util.spec_from_file_location('application', path)
@@ -11,7 +12,10 @@ def handler(request):
     global BASE_ENV
     env = dict(BASE_ENV)
     env['REQUEST_METHOD'] = request.method
-    env['PATH_INFO'] = request.uri # todo path not uri
+    env['PATH_INFO'] = get_path(request.uri)
+    env['SERVER_PROTOCOL'] = request.http_version
+    for name, value in request.headers.items():
+        env['HTTP_' + name.upper().replace('-', '_')] = value
 
     response = b''
     def write(data):
@@ -21,7 +25,7 @@ def handler(request):
     def start_response(status, response_headers, exc_info=None):
         nonlocal response
         response += bytes(
-            'HTTP/1.1' + 
+            request.http_version + 
             status +
             '\r\n' +
             '\r\n'.join(map(lambda h: h[0] + ': ' + h[1], response_headers)) +

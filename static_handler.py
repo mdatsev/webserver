@@ -1,31 +1,13 @@
 from pathlib import Path
-import urllib
+from utils import normalize_uri, remove_dot_segments
 
-def normalize_uri(uri):
-    uri = uri.lower()
-    uri = urllib.parse.urlparse(uri)
-    return uri._replace(path=urllib.parse.unquote(uri.path))
-
-def remove_dot_segments(path):
-    input = path.strip('/').split('/')
-    output = []
-    for seg in input:
-        if seg == '.':
-            continue
-        if seg == '..':
-            if(len(output) > 0):
-                output.pop()
-            continue
-        output.append(seg)
-    return output
-
-def get_path(uri):
+def get_fs_path(uri):
     global ROOT_DIR
     uri = normalize_uri(uri)
     return ROOT_DIR.joinpath(*remove_dot_segments(uri.path))
 
 def handler(request):
-    path = get_path(request.uri)
+    path = get_fs_path(request.uri)
     if(path.is_file()):
         content = path.read_bytes()
         return bytes('HTTP/1.1 200 OK\r\nContent-Length:' + str(len(content)) + '\r\n\r\n', 'ascii') + content 
