@@ -2,10 +2,15 @@
 
 import socket
 import re
-from static_handler import handler
+from config import config
 
-HOST = '127.0.0.1'
-PORT = 8080
+host = config.get('host', '127.0.0.1') 
+port = config.get('port', 8080)
+handler_type = config.get('handler', 'static')
+handler_opts = config.get('handler_opts', {})
+
+if handler_type == 'static':
+    from static_handler import handler
 
 class HTTPRequest:
     def __init__(self, method, uri, http_version, headers):
@@ -45,11 +50,11 @@ def connection_handler(socket):
             if body_start and len(data) >= body_start + body_length:
                 request.set_body(buffer[body_start:body_start+body_length])
                 break
-        conn.sendall(handler(request))
+        conn.sendall(handler(request, handler_opts))
 
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    s.bind((HOST, PORT))
+    s.bind((host, port))
     s.listen()
     while True:
         socket = s.accept()
