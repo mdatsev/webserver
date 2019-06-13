@@ -44,14 +44,14 @@ def connection_handler(socket):
                 break
             buffer += data
             idx = data.find(b'\r\n\r\n')
-            if not body_start and idx > 0:
-                body_start = idx + 4
+            if not body_start and idx >= 0:
+                body_start = len(buffer) - len(data) + idx + 4
                 request = parse_request_start(buffer)
                 if 'Content-Length' in request.headers:
                     body_length = int(request.headers['Content-Length'])
                 else:
                     body_length = 0
-            if body_start and len(data) >= body_start + body_length:
+            if body_start and len(buffer) >= body_start + body_length:
                 request.set_body(buffer[body_start:body_start+body_length])
                 break
         conn.sendall(handler(request))

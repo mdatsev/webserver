@@ -6,7 +6,7 @@ def normalize_uri(uri):
     return uri._replace(path=urllib.parse.unquote(uri.path))
 
 def remove_dot_segments(path):
-    input = path.strip('/').split('/')
+    input = path.split('/')
     output = []
     for seg in input:
         if seg == '.':

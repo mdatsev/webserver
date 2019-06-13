@@ -4,8 +4,7 @@
     "name": "webserver",
     "handler": "wsgi",
     "handler_opts": {
-        "application": "/home/marti/dev/webserver/test/app.py",
-        "root_dir": "/home/marti/dev/webserver/test",
+        "application": "/home/marti/dev/webserver/test/app/flask-example/app.py",
         "name": "webserver",
         "port": "8080"        
     }

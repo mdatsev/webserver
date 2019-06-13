@@ -33,6 +33,7 @@ def handler(request):
         nonlocal response
         response += bytes(
             request.http_version + 
+            ' ' + 
             status +
             '\r\n' +
             '\r\n'.join(map(lambda h: h[0] + ': ' + h[1], response_headers)) +
