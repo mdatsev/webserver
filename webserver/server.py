@@ -1,18 +1,16 @@
-#!/usr/bin/env python3
-
 import socket
 import re
-from config import config
-
+from . import logging
+from .config import config
 host = config.get('host', '127.0.0.1') 
 port = config.get('port', 8080)
 handler_type = config.get('handler', 'static')
 handler_opts = config.get('handler_opts', {})
 
 if handler_type == 'static':
-    from static_handler import get_handler
+    from .static_handler import get_handler
 elif handler_type == 'wsgi':
-    from wsgi_handler import get_handler
+    from .wsgi_handler import get_handler
 
 handler = get_handler(handler_opts)
 
@@ -34,7 +32,7 @@ def parse_request_start(request):
     return HTTPRequest(method, uri, version, headers)
 
 def connection_handler(socket):
-    conn, addr = socket
+    conn, _ = socket
     with conn:
         buffer = b''
         body_start = 0
@@ -56,10 +54,15 @@ def connection_handler(socket):
                 break
         conn.sendall(handler(request))
 
-with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    s.bind((host, port))
-    s.listen()
-    while True:
-        socket = s.accept()
-        connection_handler(socket)
+def main():
+    logging.log(f'Serving {handler_type} on {host}:{port}')
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        s.bind((host, port))
+        s.listen()
+        while True:
+            sock = s.accept()
+            connection_handler(sock)
+
+if __name__ == "__main__":
+    main()

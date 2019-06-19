@@ -1,5 +1,6 @@
 from pathlib import Path
-from utils import normalize_uri, remove_dot_segments
+from .utils import normalize_uri, remove_dot_segments
+from . import logging
 
 def get_fs_path(uri):
     global ROOT_DIR
@@ -9,6 +10,7 @@ def get_fs_path(uri):
 def handler(request):
     path = get_fs_path(request.uri)
     if(path.is_file()):
+        logging.log(f'[{request.method} {request.uri}] -> {path}')
         content = path.read_bytes()
         return bytes('HTTP/1.1 200 OK\r\nContent-Length:' + str(len(content)) + '\r\n\r\n', 'ascii') + content 
     else:

@@ -1,7 +1,8 @@
 import os, sys
 import importlib.util
 import io
-from utils import get_path
+from . import logging
+from .utils import get_path
 
 def load_application(path):
     module_dir = os.path.dirname(path)
@@ -49,6 +50,8 @@ def handler(request):
     finally:
         if hasattr(result, 'close'):
             result.close()
+        response_summary = response.split(b'\n')[0].partition(b' ')[2].decode('ascii')
+        logging.log(f'[{request.method} {request.uri}] -> {response_summary}')
         return response
     
 
