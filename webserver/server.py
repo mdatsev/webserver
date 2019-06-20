@@ -2,17 +2,11 @@ import socket
 import re
 from . import logging
 from .config import config
+from .load_handler import load_handler
 host = config.get('host', '127.0.0.1') 
 port = config.get('port', 8080)
-handler_type = config.get('handler', 'static')
-handler_opts = config.get('handler_opts', {})
-
-if handler_type == 'static':
-    from .static_handler import get_handler
-elif handler_type == 'wsgi':
-    from .wsgi_handler import get_handler
-
-handler = get_handler(handler_opts)
+handler = load_handler(config.get('handler', 'static'), 
+                       config.get('handler_opts', {}))
 
 class HTTPRequest:
     def __init__(self, method, uri, http_version, headers):
@@ -55,7 +49,7 @@ def connection_handler(socket):
         conn.sendall(handler(request))
 
 def main():
-    logging.log(f'Serving {handler_type} on {host}:{port}')
+    logging.log(f'Serving on http://{host}:{port}')
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         s.bind((host, port))

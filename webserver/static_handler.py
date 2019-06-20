@@ -1,13 +1,13 @@
 from pathlib import Path
-from .utils import normalize_uri, remove_dot_segments
+from .utils import get_path
 from . import logging
 
 def get_fs_path(uri):
     global ROOT_DIR
-    uri = normalize_uri(uri)
-    return ROOT_DIR.joinpath(*remove_dot_segments(uri.path))
+    return ROOT_DIR.joinpath(get_path(uri)[1:])
 
 def handler(request):
+    print('static')
     path = get_fs_path(request.uri)
     if(path.is_file()):
         logging.log(f'[{request.method} {request.uri}] -> {path}')
