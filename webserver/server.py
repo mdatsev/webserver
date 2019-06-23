@@ -17,12 +17,12 @@ class HTTPRequest:
     def set_body(self, body):
         self.body = body
 
-start_re = re.compile('^(?:(.*?) (.*?) (.*?))\r\n(.*?)\r\n\r\n', re.S)
+start_re = re.compile('^(.*?) (.*?) (.*?)\r\n(.*?\r\n)?\r\n', re.S)
 header_re = re.compile('(.*?):[\t ]*(.*)')
 def parse_request_start(request):
     request = request.decode('ascii') # not sure
     method, uri, version, headers = start_re.match(request).groups()
-    headers = dict(header_re.match(h).groups() for h in headers.split('\r\n'))
+    headers = dict((header_re.match(h).groups() for h in headers.split('\r\n') if h)) if headers else {}
     return HTTPRequest(method, uri, version, headers)
 
 async def connection_handler(reader, writer):
@@ -33,9 +33,10 @@ async def connection_handler(reader, writer):
         if not data:
             break
         buffer += data
-        idx = data.find(b'\r\n\r\n')
+        find_start = max(0, len(buffer) - len(data) - 3)
+        idx = buffer.find(b'\r\n\r\n', find_start)
         if not body_start and idx >= 0:
-            body_start = len(buffer) - len(data) + idx + 4
+            body_start = idx + 4
             request = parse_request_start(buffer)
             if 'Content-Length' in request.headers:
                 body_length = int(request.headers['Content-Length'])
