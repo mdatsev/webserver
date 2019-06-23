@@ -1,4 +1,4 @@
-import socket
+import socket, asyncio
 import re
 from . import logging
 from .config import config
@@ -25,38 +25,38 @@ def parse_request_start(request):
     headers = dict(header_re.match(h).groups() for h in headers.split('\r\n'))
     return HTTPRequest(method, uri, version, headers)
 
-def connection_handler(socket):
-    conn, _ = socket
-    with conn:
-        buffer = b''
-        body_start = 0
-        while True:
-            data = conn.recv(1024)
-            if not data:
-                break
-            buffer += data
-            idx = data.find(b'\r\n\r\n')
-            if not body_start and idx >= 0:
-                body_start = len(buffer) - len(data) + idx + 4
-                request = parse_request_start(buffer)
-                if 'Content-Length' in request.headers:
-                    body_length = int(request.headers['Content-Length'])
-                else:
-                    body_length = 0
-            if body_start and len(buffer) >= body_start + body_length:
-                request.set_body(buffer[body_start:body_start+body_length])
-                break
-        conn.sendall(handler(request))
+async def connection_handler(reader, writer):
+    buffer = b''
+    body_start = 0
+    while True:
+        data = await reader.read(1024)
+        if not data:
+            break
+        buffer += data
+        idx = data.find(b'\r\n\r\n')
+        if not body_start and idx >= 0:
+            body_start = len(buffer) - len(data) + idx + 4
+            request = parse_request_start(buffer)
+            if 'Content-Length' in request.headers:
+                body_length = int(request.headers['Content-Length'])
+            else:
+                body_length = 0
+        if body_start and len(buffer) >= body_start + body_length:
+            request.set_body(buffer[body_start:body_start+body_length])
+            break
+    writer.write(handler(request))
+    await writer.drain()
+    writer.close()
 
 def main():
     logging.log(f'Serving on http://{host}:{port}')
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        s.bind((host, port))
-        s.listen()
-        while True:
-            sock = s.accept()
-            connection_handler(sock)
+    loop = asyncio.get_event_loop()
+    coro = asyncio.start_server(connection_handler, host, port, loop=loop)
+    server = loop.run_until_complete(coro)
+    loop.run_forever()
+    server.close()
+    loop.run_until_complete(server.wait_closed())
+    loop.close()
 
 if __name__ == "__main__":
     main()
