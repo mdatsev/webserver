@@ -1,5 +1,4 @@
-import socket, asyncio
-import re
+import socket, asyncio, ssl, re
 from . import logging
 from .config import config
 from .load_handler import load_handler
@@ -7,6 +6,15 @@ host = config.get('host', '127.0.0.1')
 port = config.get('port', 8080)
 handler = load_handler(config.get('handler', 'static'), 
                        config.get('handler_opts', {}))
+use_https = config.get('use_https', False)
+ssl_context = None
+if use_https:
+    ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    ssl_context.load_cert_chain(
+        config.get('https_cert'), 
+        config.get('https_key'), 
+        config.get('https_password', None)
+    )
 
 class HTTPRequest:
     def __init__(self, method, uri, http_version, headers):
@@ -45,7 +53,7 @@ async def connection_handler(reader, writer):
         if body_start and len(buffer) >= body_start + body_length:
             request.set_body(buffer[body_start:body_start+body_length])
             break
-    response = handler(request).encode_body('br').get_raw()
+    response = handler(request).get_raw()
     writer.write(response)
     await writer.drain()
     writer.close()
@@ -53,7 +61,7 @@ async def connection_handler(reader, writer):
 def main():
     logging.log(f'Serving on http://{host}:{port}')
     loop = asyncio.get_event_loop()
-    coro = asyncio.start_server(connection_handler, host, port, loop=loop)
+    coro = asyncio.start_server(connection_handler, host, port, loop=loop, ssl=ssl_context)
     server = loop.run_until_complete(coro)
     loop.run_forever()
     server.close()

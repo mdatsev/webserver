@@ -3,15 +3,19 @@
     "port": 8080,
     "name": "webserver",
     "handler": "router",
+    "use_https": true,
+    "https_key": "/home/marti/dev/webserver/private.key",
+    "https_cert": "/home/marti/dev/webserver/cert.pem",
+    "https_password": "1234",
     "handler_opts": {
         "routes": {
-            "/static/": {
+            "/test/": {
                 "handler": "static",
                 "handler_opts": {
                     "root_dir": "/home/marti/dev/webserver/test"
                 }
             },
-            "/app/": {
+            "/": {
                 "handler": "wsgi",
                 "handler_opts": {
                     "name": "webserver",
