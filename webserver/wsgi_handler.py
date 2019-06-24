@@ -3,6 +3,7 @@ import importlib.util
 import io
 from . import logging
 from .utils import get_path
+from .response import HTTPResponse
 
 def load_application(path):
     module_dir = os.path.dirname(path)
@@ -25,21 +26,17 @@ def handler(request):
     for name, value in request.headers.items():
         env['HTTP_' + name.upper().replace('-', '_')] = value
 
-    response = b''
+    response = None
     def write(data):
         nonlocal response
-        response += data
+        response.write_body(data)
 
     def start_response(status, response_headers, exc_info=None):
         nonlocal response
-        response += bytes(
-            request.http_version + 
-            ' ' + 
-            status +
-            '\r\n' +
-            '\r\n'.join(map(lambda h: h[0] + ': ' + h[1], response_headers)) +
-            '\r\n\r\n', 'ascii'
-        )
+        response = HTTPResponse(
+            request.http_version,
+            status,
+            dict(response_headers))
         return write
 
     result = application(env, start_response)
@@ -50,7 +47,7 @@ def handler(request):
     finally:
         if hasattr(result, 'close'):
             result.close()
-        response_summary = response.split(b'\n')[0].partition(b' ')[2].decode('ascii')
+        response_summary = response.status
         logging.log(f'[{request.method} {request.uri}] -> {response_summary}')
         return response
     

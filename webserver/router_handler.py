@@ -1,6 +1,7 @@
 from .utils import get_path
 from . import logging
 from .load_handler import load_handler
+from .response import HTTPResponse
 
 def handler(request):
     path = get_path(request.uri)
@@ -8,7 +9,12 @@ def handler(request):
         if path.startswith(route):
             request.uri = path[len(route) - 1:]
             return handler(request)
-    return b'HTTP/1.1 404 Not Found\r\n\r\n'
+    return HTTPResponse(
+        'HTTP/1.1', 
+        '404 Not Found', 
+        {},
+        b'No app on this path'
+    )
     
 
 def get_handler(opts):

@@ -45,7 +45,8 @@ async def connection_handler(reader, writer):
         if body_start and len(buffer) >= body_start + body_length:
             request.set_body(buffer[body_start:body_start+body_length])
             break
-    writer.write(handler(request))
+    response = handler(request).encode_body('gzip').get_raw()
+    writer.write(response)
     await writer.drain()
     writer.close()
 
