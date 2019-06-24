@@ -1,4 +1,5 @@
 import zlib
+import brotli
 
 class HTTPResponse:
     def __init__(self, http_version, status, headers, body=b''):
@@ -29,6 +30,8 @@ class HTTPResponse:
         elif encoding == 'gzip':
             compress = zlib.compressobj(wbits=zlib.MAX_WBITS|16)
             self.body = compress.compress(self.body) + compress.flush()
+        elif encoding == 'br':
+            self.body = brotli.compress(self.body)
         else:
             raise Exception(f'Unsupported encoding "{encoding}"')
         self.headers['Content-Encoding'] = encoding
