@@ -69,14 +69,16 @@ async def connection_handler(reader, writer):
     logging.measure_time(elapsed_time)
 
 def main():
-    logging.log(f'Serving on {"https" if use_https else "http"}://{host}:{port}')
-    loop = asyncio.get_event_loop()
-    coro = asyncio.start_server(connection_handler, host, port, loop=loop, ssl=ssl_context)
-    server = loop.run_until_complete(coro)
-    loop.run_forever()
-    server.close()
-    loop.run_until_complete(server.wait_closed())
-    loop.close()
-
-if __name__ == "__main__":
-    main()
+    try:
+        logging.log(f'Serving on {"https" if use_https else "http"}://{host}:{port}')
+        
+        loop = asyncio.get_event_loop()
+        coro = asyncio.start_server(connection_handler, host, port, loop=loop, ssl=ssl_context)
+        server = loop.run_until_complete(coro)
+        loop.run_forever()
+    except KeyboardInterrupt:
+        logging.log_performance()
+    finally:
+        server.close()
+        loop.run_until_complete(server.wait_closed())
+        loop.close()
