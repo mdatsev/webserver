@@ -1,4 +1,5 @@
 import socket, asyncio, ssl, re
+import time
 from . import logging
 from .config import config
 from .load_handler import load_handler
@@ -12,7 +13,7 @@ if use_https:
     ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
     ssl_context.load_cert_chain(
         config.get('https_cert'), 
-        config.get('https_key'), 
+        config.get('https_key'),
         config.get('https_password', None)
     )
 
@@ -30,24 +31,31 @@ header_re = re.compile('(.*?):[\t ]*(.*)')
 def parse_request_start(request):
     request = request.decode('ascii') # not sure
     method, uri, version, headers = start_re.match(request).groups()
-    headers = dict((header_re.match(h).groups() for h in headers.split('\r\n') if h)) if headers else {}
+    headers = {
+        k.lower(): v 
+        for k, v in (
+            header_re.match(h).groups() 
+            for h in headers.split('\r\n') if h)
+    } if headers else {}
     return HTTPRequest(method, uri, version, headers)
 
 async def connection_handler(reader, writer):
+    start_time = time.time()
     buffer = b''
     body_start = 0
     while True:
         data = await reader.read(1024)
         if not data:
-            break
+            logging.warn('connection closed. aborting')
+            return
         buffer += data
         find_start = max(0, len(buffer) - len(data) - 3)
         idx = buffer.find(b'\r\n\r\n', find_start)
         if not body_start and idx >= 0:
             body_start = idx + 4
             request = parse_request_start(buffer)
-            if 'Content-Length' in request.headers:
-                body_length = int(request.headers['Content-Length'])
+            if 'content-length' in request.headers:
+                body_length = int(request.headers['content-length'])
             else:
                 body_length = 0
         if body_start and len(buffer) >= body_start + body_length:
@@ -57,9 +65,11 @@ async def connection_handler(reader, writer):
     writer.write(response)
     await writer.drain()
     writer.close()
+    elapsed_time = time.time() - start_time
+    logging.measure_time(elapsed_time)
 
 def main():
-    logging.log(f'Serving on http://{host}:{port}')
+    logging.log(f'Serving on {"https" if use_https else "http"}://{host}:{port}')
     loop = asyncio.get_event_loop()
     coro = asyncio.start_server(connection_handler, host, port, loop=loop, ssl=ssl_context)
     server = loop.run_until_complete(coro)

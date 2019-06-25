@@ -20,8 +20,8 @@ def handler(request):
     env['REQUEST_METHOD'] = request.method
     env['PATH_INFO'] = get_path(request.uri)
     env['SERVER_PROTOCOL'] = request.http_version
-    env['CONTENT_LENGTH'] = request.headers.get('Content-Length', '')
-    env['CONTENT_TYPE'] = request.headers.get('Content-Type', '')
+    env['CONTENT_LENGTH'] = request.headers.get('content-length', '')
+    env['CONTENT_TYPE'] = request.headers.get('content-type', '')
     env['wsgi.input'] = io.BytesIO(request.body)
     for name, value in request.headers.items():
         env['HTTP_' + name.upper().replace('-', '_')] = value

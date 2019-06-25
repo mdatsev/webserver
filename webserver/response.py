@@ -1,5 +1,6 @@
 import zlib
 import brotli
+from . import logging
 
 class HTTPResponse:
     def __init__(self, http_version, status, headers, body=b''):
@@ -33,6 +34,7 @@ class HTTPResponse:
         elif encoding == 'br':
             self.body = brotli.compress(self.body)
         else:
-            raise Exception(f'Unsupported encoding "{encoding}"')
-        self.headers['Content-Encoding'] = encoding
+            logging.warn(f'unsupported encoding "{encoding}". ignoring')
+            return
+        self.headers['content-encoding'] = encoding
         return self

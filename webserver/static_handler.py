@@ -9,7 +9,6 @@ def get_fs_path(uri):
 
 def handler(request):
     path = get_fs_path(request.uri)
-    print(path)
     if(path.is_file()):
         logging.log(f'[{request.method} {request.uri}] -> {path}')
         content = path.read_bytes()

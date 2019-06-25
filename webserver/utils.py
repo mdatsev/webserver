@@ -1,4 +1,4 @@
-import urllib
+import urllib.parse
 
 def normalize_uri(uri):
     uri = uri.lower()
