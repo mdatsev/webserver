@@ -15,7 +15,7 @@ def handler(request):
         return HTTPResponse(
             'HTTP/1.1', 
             '200 OK', 
-            { 'Content-Length:': str(len(content)) },
+            { 'Content-Length': str(len(content)) },
             content
         ) 
     else:
