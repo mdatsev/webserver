@@ -3,6 +3,7 @@ import time
 from . import logging
 from .config import config
 from .load_handler import load_handler
+from . import http2
 host = config.get('host', '127.0.0.1') 
 port = config.get('port', 8080)
 handler = load_handler(config.get('handler', 'static'), 
@@ -16,6 +17,7 @@ if use_https:
         config.get('https_key'),
         config.get('https_password', None)
     )
+    ssl_context.set_alpn_protocols(['h2', 'http/1.1'])
 
 class HTTPRequest:
     def __init__(self, method, uri, http_version, headers):
@@ -73,7 +75,7 @@ def main():
         logging.log(f'Serving on {"https" if use_https else "http"}://{host}:{port}')
         
         loop = asyncio.get_event_loop()
-        coro = asyncio.start_server(connection_handler, host, port, loop=loop, ssl=ssl_context)
+        coro = asyncio.start_server(http2.connection_handler, host, port, loop=loop, ssl=ssl_context)
         server = loop.run_until_complete(coro)
         loop.run_forever()
     except KeyboardInterrupt:
