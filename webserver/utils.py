@@ -1,8 +1,8 @@
 import urllib.parse
 
 def normalize_uri(uri):
-    uri = uri.lower()
     uri = urllib.parse.urlparse(uri)
+    uri = uri._replace(netloc=uri.netloc.lower())
     return uri._replace(path=urllib.parse.unquote(uri.path))
 
 def remove_dot_segments(path):
