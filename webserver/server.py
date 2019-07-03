@@ -70,15 +70,19 @@ async def connection_handler(reader, writer):
 
 def main():
     try:
-        logging.log(f'Serving on {"https" if use_https else "http"}://{host}:{port}')
-        
         loop = asyncio.get_event_loop()
         coro = asyncio.start_server(connection_handler, host, port, loop=loop, ssl=ssl_context)
         server = loop.run_until_complete(coro)
-        loop.run_forever()
+        logging.log(f'Serving on {"https" if use_https else "http"}://{host}:{port}')
+        while True:
+            try:
+                loop.run_forever()
+            except Exception as e:
+                logging.error(e)
+    except Exception as e:
+        logging.error('Unrecoverable error')
     except KeyboardInterrupt:
         logging.log_performance()
-    finally:
         server.close()
         loop.run_until_complete(server.wait_closed())
         loop.close()
