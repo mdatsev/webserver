@@ -3,6 +3,7 @@ import time
 from . import logging
 from .config import config
 from .load_handler import load_handler
+from .response import HTTPStreamResponse
 host = config.get('host', '127.0.0.1') 
 port = config.get('port', 8080)
 handler = load_handler(config.get('handler', 'static'), 
@@ -62,11 +63,12 @@ async def connection_handler(reader, writer):
             request.set_body(buffer[body_start:body_start+body_length])
             break
     if(request.uri == '/ram_test'):
-        response = b'HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nhello'
+        writer.write(
+            b'HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nhello'b'HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nhello')
+        await writer.drain()
     else:
-        response = (await handler(request)).get_raw()
-    writer.write(response)
-    await writer.drain()
+        response = HTTPStreamResponse('HTTP/1.1', writer)
+        await handler(request, response)
     writer.close()
     elapsed_time = time.time() - start_time
     logging.measure_time(elapsed_time)
