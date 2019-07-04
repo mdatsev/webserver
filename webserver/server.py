@@ -61,7 +61,10 @@ async def connection_handler(reader, writer):
         if body_start and len(buffer) >= body_start + body_length:
             request.set_body(buffer[body_start:body_start+body_length])
             break
-    response = handler(request).get_raw()
+    if(request.uri == '/ram_test'):
+        response = b'HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nhello'
+    else:
+        response = (await handler(request)).get_raw()
     writer.write(response)
     await writer.drain()
     writer.close()
