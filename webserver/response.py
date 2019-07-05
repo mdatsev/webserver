@@ -39,10 +39,55 @@ class HTTPResponse:
         self.headers['content-encoding'] = encoding
         return self
 
+class IdentityEncoder:
+    def process(self,data):
+        return data
+    def flush(self):
+        return b''
+
+class DeflateEncoder:
+    def process(self, data):
+        return self.compressor.compress(data)
+    def flush(self):
+        return self.compressor.flush()
+    def __init__(self):
+        self.compressor = zlib.compressobj(wbits=-zlib.MAX_WBITS)
+
+class GzipEncoder:
+    def process(self, data):
+        return self.compressor.compress(data)
+    def flush(self):
+        return self.compressor.flush()
+    def __init__(self):
+        self.compressor = zlib.compressobj(wbits=zlib.MAX_WBITS|16)
+
+class BrotliEncoder:
+    def process(self, data):
+        return self.compressor.process(data)
+    def flush(self):
+        return self.compressor.flush()
+    def __init__(self):
+        self.compressor = brotli.Compressor()
+
+def get_encoder(encoding):
+    if encoding == 'identity':
+        return IdentityEncoder()
+    elif encoding == 'deflate':
+        return DeflateEncoder()
+    elif encoding == 'gzip':
+        return GzipEncoder()
+    elif encoding == 'br':
+        return BrotliEncoder()
+    else:
+        raise Exception(f'unsupported encoding "{encoding}"')
+
 class HTTPStreamResponse:
-    def __init__(self, http_version, writer):
+    def __init__(self, http_version, writer, encoding='identity'):
         self.http_version = http_version
         self.writer = writer
+        self.unsent_headers = {}
+        self.encoder = get_encoder(encoding)
+        self.unsent_headers['content-encoding'] = encoding
         self.status_written = False
         self.headers_written = False
 
@@ -67,11 +112,15 @@ class HTTPStreamResponse:
 
     async def write_body(self, body):
         if not self.headers_written:
+            await self.write_headers(self.unsent_headers)
             await self.write(b'\r\n')
             self.headers_written = True
-        await self.write(body)
+        await self.write(self.encoder.process(body))
 
     async def send(self, status, headers, body):
         await self.write_status(status)
         await self.write_headers(headers)
         await self.write_body(body)
+
+    async def finish(self):
+       await self.write(self.encoder.flush())

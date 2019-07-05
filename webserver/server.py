@@ -69,6 +69,7 @@ async def connection_handler(reader, writer):
     else:
         response = HTTPStreamResponse('HTTP/1.1', writer)
         await handler(request, response)
+        await response.finish()
     writer.close()
     elapsed_time = time.time() - start_time
     logging.measure_time(elapsed_time)
