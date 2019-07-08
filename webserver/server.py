@@ -47,7 +47,7 @@ async def connection_handler(reader, writer):
     while True:
         data = await reader.read(1024)
         if not data:
-            logging.warn('connection closed. aborting')
+            await logging.warn('connection closed. aborting')
             return
         buffer += data
         find_start = max(0, len(buffer) - len(data) - 3)
@@ -72,23 +72,23 @@ async def connection_handler(reader, writer):
         await response.finish()
     writer.close()
     elapsed_time = time.time() - start_time
-    logging.measure_time(elapsed_time)
+    await logging.measure_time(elapsed_time)
 
 def main():
     try:
         loop = asyncio.get_event_loop()
         coro = asyncio.start_server(connection_handler, host, port, loop=loop, ssl=ssl_context)
         server = loop.run_until_complete(coro)
-        logging.log(f'Serving on {"https" if use_https else "http"}://{host}:{port}')
+        logging.log_sync(f'Serving on {"https" if use_https else "http"}://{host}:{port}')
         while True:
             try:
                 loop.run_forever()
             except Exception as e:
-                logging.error(e)
+                logging.error_sync(e)
     except Exception as e:
-        logging.error('Unrecoverable error')
+        logging.error_sync('Unrecoverable error')
     except KeyboardInterrupt:
-        logging.log_performance()
+        # logging.log_performance()
         server.close()
         loop.run_until_complete(server.wait_closed())
         loop.close()

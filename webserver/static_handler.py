@@ -11,7 +11,7 @@ def get_fs_path(uri):
 async def handler(request, response):
     path = get_fs_path(request.uri)
     if(path.is_file()):
-        logging.log(f'[{request.method} {request.uri}] -> {path}')
+        await logging.log(f'[{request.method} {request.uri}] -> {path}')
         await response.write_status('200 OK')
         await response.write_headers({'Content-Length': str(path.stat().st_size)})
         async with aiofiles.open(path, mode='rb') as f:
@@ -21,7 +21,7 @@ async def handler(request, response):
                     break
                 await response.write_body(data)
     else:
-        logging.log(f'[{request.method} {request.uri}] -> 404 NOT FOUND [{path}]')
+        await logging.log(f'[{request.method} {request.uri}] -> 404 NOT FOUND [{path}]')
         response.send( 
             '404 Not Found', 
             {},

@@ -1,3 +1,14 @@
+import aiofiles
+
+async def write(*args):
+    async with aiofiles.open('log.txt', mode='w') as f:
+        await f.write(' '.join(args) + '\n')
+
+def write_sync(*args):
+    with open('log.txt', mode='w') as f:
+        f.write(' '.join(args) + '\n')
+
+
 n = 0
 avg = 0
 mint = float('inf')
@@ -12,19 +23,28 @@ def measure_time(t):
 def format_time(t):
     return f'{t*1000:.3f}ms per request'
 
-def log_performance():
+async def log_performance():
     global n
     if(n > 0):    
-        print('\n\n')
-        print('min:', format_time(mint))
-        print('avg:', format_time(avg))
-        print('max:', format_time(maxt))
+        await write('\n\n',
+            'min:', format_time(mint),
+            'avg:', format_time(avg),
+            'max:', format_time(maxt))
 
-def log(message):
-    print(message)
+async def log(message):
+    await write(message)
 
-def warn(message):
-    print('WARN', message)
+async def warn(message):
+    await write('WARN', message)
 
-def error(message):
-    print('ERROR', message)
+async def error(message):
+    await write('ERROR', message)
+
+def log_sync(message):
+    write_sync(message)
+
+def warn_sync(message):
+    write_sync('WARN', message)
+
+def error_sync(message):
+    write_sync('ERROR', message)
