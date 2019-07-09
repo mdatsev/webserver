@@ -1,6 +1,8 @@
 import socket
 import os
 import struct
+import subprocess
+import time
 from enum import IntEnum
 from .utils import get_path
 from . import logging
@@ -49,6 +51,7 @@ class RecordType(IntEnum):
 
 BASE_PARAMS = {}
 def send_params(sock, params):
+    global counter
     body = b''
     for k, v in params.items():
         name = bytes(k, 'ascii')
@@ -56,12 +59,14 @@ def send_params(sock, params):
         body += struct.pack('!II', len(name) | (1 << 31), len(value) | (1 << 31))
         body += name
         body += value
-    sock.sendall(struct.pack('!BBHHBx', 1, RecordType.PARAMS, 1, len(body), 0))
+    sock.sendall(struct.pack('!BBHHBx', 1, RecordType.PARAMS, counter, len(body), 0))
     sock.sendall(body)
-    sock.sendall(struct.pack('!BBHHBx', 1, RecordType.PARAMS, 1, 0, 0))
-
+    sock.sendall(struct.pack('!BBHHBx', 1, RecordType.PARAMS, counter, 0, 0))
+counter = 1
 async def handler(request, response):
     global fcgi_sock
+    global counter
+    counter += 1
     params = dict(BASE_PARAMS)
     params['REQUEST_METHOD'] = request.method
     params['PATH_INFO'] = get_path(request.uri)
@@ -70,15 +75,34 @@ async def handler(request, response):
     params['CONTENT_TYPE'] = request.headers.get('content-type', '')
     for name, value in request.headers.items():
         params['HTTP_' + name.upper().replace('-', '_')] = value
-    fcgi_sock.sendall(struct.pack('!BBHHBx', 1, RecordType.BEGIN_REQUEST, 1, 8, 0))
-    fcgi_sock.sendall(struct.pack('!HBxxxxx', 1, 0))
+    fcgi_sock.sendall(struct.pack('!BBHHBx', 1, RecordType.BEGIN_REQUEST, counter, 8, 0))
+    fcgi_sock.sendall(struct.pack('!HBxxxxx', 1, 1))
     send_params(fcgi_sock, params)
-    fcgi_sock.recv(8)
     while True:
-        b = fcgi_sock.recv(1000000)
-        if not b:
+        header = b''
+        while len(header) < 8:
+            h = fcgi_sock.recv(1)
+            if not h:
+                break
+            header += h
+        if not h:
             break
-        await response.write(b'HTTP/1.1 ' + b)
+        v, rtype, rid, clen, plen = struct.unpack('!BBHHBx', header)
+        data = b''
+        while len(data) < clen:
+            b = fcgi_sock.recv(1)
+            data += b
+        padding = b''
+        while len(padding) < plen:
+            b = fcgi_sock.recv(1)
+            padding += b
+        if RecordType(rtype) == RecordType.STDOUT:
+            if data.startswith(b'Status:'):
+                status, sep, data = data.partition(b'\r\n')
+                await response.write(b'HTTP/1.1' + status[7:] + sep)
+            await response.write(data)
+        if RecordType(rtype) == RecordType.END_REQUEST:
+            break
 
 
 def get_handler(opts):
@@ -86,6 +110,13 @@ def get_handler(opts):
     global BASE_PARAMS
     BASE_PARAMS['SERVER_NAME'] = opts['name']
     BASE_PARAMS['SERVER_PORT'] = opts['port']
+    subprocess.Popen('./test/app/flask-example/fastcgi.py')
     fcgi_sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-    fcgi_sock.connect('./sock')
+    while True:
+        try:
+            fcgi_sock.connect('./sock')
+            break
+        except ConnectionRefusedError:
+            time.sleep(0.1)
+            print('fail')
     return handler
