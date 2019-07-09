@@ -50,8 +50,7 @@ class RecordType(IntEnum):
 #                   } FCGI_NameValuePair44;
 
 BASE_PARAMS = {}
-def send_params(sock, params):
-    global counter
+def send_params(sock, params, rid):
     body = b''
     for k, v in params.items():
         name = bytes(k, 'ascii')
@@ -59,14 +58,19 @@ def send_params(sock, params):
         body += struct.pack('!II', len(name) | (1 << 31), len(value) | (1 << 31))
         body += name
         body += value
-    sock.sendall(struct.pack('!BBHHBx', 1, RecordType.PARAMS, counter, len(body), 0))
+    sock.sendall(struct.pack('!BBHHBx', 1, RecordType.PARAMS, rid, len(body), 0))
     sock.sendall(body)
-    sock.sendall(struct.pack('!BBHHBx', 1, RecordType.PARAMS, counter, 0, 0))
-counter = 1
-async def handler(request, response):
-    global fcgi_sock
+    sock.sendall(struct.pack('!BBHHBx', 1, RecordType.PARAMS, rid, 0, 0))
+
+counter = 0
+def get_request_id():
     global counter
     counter += 1
+    return counter
+
+async def handler(request, response):
+    global fcgi_sock
+    rid = get_request_id()
     params = dict(BASE_PARAMS)
     params['REQUEST_METHOD'] = request.method
     params['PATH_INFO'] = get_path(request.uri)
@@ -75,9 +79,9 @@ async def handler(request, response):
     params['CONTENT_TYPE'] = request.headers.get('content-type', '')
     for name, value in request.headers.items():
         params['HTTP_' + name.upper().replace('-', '_')] = value
-    fcgi_sock.sendall(struct.pack('!BBHHBx', 1, RecordType.BEGIN_REQUEST, counter, 8, 0))
+    fcgi_sock.sendall(struct.pack('!BBHHBx', 1, RecordType.BEGIN_REQUEST, rid, 8, 0))
     fcgi_sock.sendall(struct.pack('!HBxxxxx', 1, 1))
-    send_params(fcgi_sock, params)
+    send_params(fcgi_sock, params, rid)
     while True:
         header = b''
         while len(header) < 8:
