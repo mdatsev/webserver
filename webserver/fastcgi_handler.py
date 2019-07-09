@@ -3,6 +3,7 @@ import os
 import struct
 import subprocess
 import time
+import os
 from enum import IntEnum
 from .utils import get_path
 from . import logging
@@ -82,6 +83,9 @@ async def handler(request, response):
     fcgi_sock.sendall(struct.pack('!BBHHBx', 1, RecordType.BEGIN_REQUEST, rid, 8, 0))
     fcgi_sock.sendall(struct.pack('!HBxxxxx', 1, 1))
     send_params(fcgi_sock, params, rid)
+    fcgi_sock.sendall(struct.pack('!BBHHBx', 1, RecordType.STDIN, rid, len(request.body), 0))
+    fcgi_sock.sendall(request.body)
+    fcgi_sock.sendall(struct.pack('!BBHHBx', 1, RecordType.STDIN, rid, 0, 0))
     while True:
         header = b''
         while len(header) < 8:
@@ -114,11 +118,13 @@ def get_handler(opts):
     global BASE_PARAMS
     BASE_PARAMS['SERVER_NAME'] = opts['name']
     BASE_PARAMS['SERVER_PORT'] = opts['port']
-    subprocess.Popen('./test/app/flask-example/fastcgi.py')
+    path = opts.get('application')
+    module_dir = os.path.dirname(path)
+    subprocess.Popen(path, cwd=module_dir)
     fcgi_sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     while True:
         try:
-            fcgi_sock.connect('./sock')
+            fcgi_sock.connect(opts.get('sock'))
             break
         except ConnectionRefusedError:
             time.sleep(0.1)
