@@ -72,7 +72,7 @@ async def connection_handler(reader, writer):
         await response.finish()
     writer.close()
     elapsed_time = time.time() - start_time
-    await logging.measure_time(elapsed_time)
+    logging.measure_time(elapsed_time)
 
 def main():
     try:
