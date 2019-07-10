@@ -29,7 +29,7 @@ async def send_params(writer, params, rid):
     body = b''
     for k, v in params.items():
         name = bytes(k, 'ascii')
-        value = bytes(v, 'ascii')
+        value = v if isinstance(v, bytes) else bytes(v, 'ascii') 
         body += struct.pack('!II', len(name) | (1 << 31), len(value) | (1 << 31))
         body += name
         body += value

@@ -14,18 +14,17 @@ class HTTPRequest:
     def set_body(self, body):
         self.body = body
 
-start_re = re.compile('^(.*?) (.*?) (.*?)\r\n(.*?\r\n)?\r\n', re.S)
-header_re = re.compile('(.*?):[\t ]*(.*)')
+start_re = re.compile(b'^(.*?) (.*?) (.*?)\r\n(.*?\r\n)?\r\n', re.S)
+header_re = re.compile(b'(.*?):[\t ]*(.*)')
 def parse_request_start(request):
-    request = request.decode('ascii') # not sure
     method, uri, version, headers = start_re.match(request).groups()
     headers = {
-        k.lower(): v 
+        k.lower().decode('ascii'): v 
         for k, v in (
             header_re.match(h).groups() 
-            for h in headers.split('\r\n') if h)
+            for h in headers.split(b'\r\n') if h)
     } if headers else {}
-    return HTTPRequest(method, uri, version, headers)
+    return HTTPRequest(method.decode('ascii'), uri.decode('ascii'), version.decode('ascii'), headers)
 
 async def connection_handler(reader, writer):
     start_time = time.time()
