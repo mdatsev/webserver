@@ -4,19 +4,6 @@ from . import logging
 from .config import config
 from .load_handler import load_handler
 from .response import HTTPStreamResponse
-host = config.get('host', '127.0.0.1') 
-port = config.get('port', 8080)
-handler = load_handler(config.get('handler', 'static'), 
-                       config.get('handler_opts', {}))
-use_https = config.get('use_https', False)
-ssl_context = None
-if use_https:
-    ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-    ssl_context.load_cert_chain(
-        config.get('https_cert'), 
-        config.get('https_key'),
-        config.get('https_password', None)
-    )
 
 class HTTPRequest:
     def __init__(self, method, uri, http_version, headers):
@@ -72,13 +59,31 @@ async def connection_handler(reader, writer):
         await response.finish()
     writer.close()
     elapsed_time = time.time() - start_time
-    await logging.measure_time(elapsed_time)
+    logging.measure_time(elapsed_time)
+
+host = config.get('host', '127.0.0.1') 
+port = config.get('port', 8080)
+use_https = config.get('use_https', False)
+ssl_context = None
+if use_https:
+    ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    ssl_context.load_cert_chain(
+        config.get('https_cert'), 
+        config.get('https_key'),
+        config.get('https_password', None)
+    )
+
+async def initialize_async(loop):
+    global handler
+    handler = await load_handler(config.get('handler', 'static'), 
+                       config.get('handler_opts', {}))
+    server = await asyncio.start_server(connection_handler, host, port, loop=loop, ssl=ssl_context)
+    return server
 
 def main():
     try:
         loop = asyncio.get_event_loop()
-        coro = asyncio.start_server(connection_handler, host, port, loop=loop, ssl=ssl_context)
-        server = loop.run_until_complete(coro)
+        server = loop.run_until_complete(initialize_async(loop))
         logging.log_sync(f'Serving on {"https" if use_https else "http"}://{host}:{port}')
         while True:
             try:
@@ -86,6 +91,7 @@ def main():
             except Exception as e:
                 logging.error_sync(e)
     except Exception as e:
+        print(e)
         logging.error_sync('Unrecoverable error')
     except KeyboardInterrupt:
         # logging.log_performance()
