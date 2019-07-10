@@ -5,5 +5,7 @@
     "handler": "static",
     "handler_opts": {
         "root_dir": "/home/marti/dev/webserver/test"
-    }
+    },
+    "encoding": ["br", "gzip", "deflate", "identity"],
+    "encoding_prioritize": "server"
 }

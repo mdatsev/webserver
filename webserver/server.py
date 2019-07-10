@@ -22,7 +22,7 @@ def parse_request_start(request):
         k.lower().decode('ascii'): v 
         for k, v in (
             header_re.match(h).groups() 
-            for h in headers.split(b'\r\n') if h)
+        for h in headers.split(b'\r\n') if h)
     } if headers else {}
     return HTTPRequest(method.decode('ascii'), uri.decode('ascii'), version.decode('ascii'), headers)
 
@@ -53,7 +53,7 @@ async def connection_handler(reader, writer):
             b'HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nhello'b'HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nhello')
         await writer.drain()
     else:
-        response = HTTPStreamResponse('HTTP/1.1', writer)
+        response = HTTPStreamResponse('HTTP/1.1', writer, choose_encoding(request.headers['accept-encoding'].decode('ascii')))
         await handler(request, response)
         await response.finish()
     writer.close()
@@ -63,6 +63,18 @@ async def connection_handler(reader, writer):
 host = config.get('host', '127.0.0.1') 
 port = config.get('port', 8080)
 use_https = config.get('use_https', False)
+encoding_list = config.get('encoding', ['identity'])
+encoding_prioritize = config.get('encoding_prioritize', 'server')
+def choose_encoding(accept):
+    first = encoding_list
+    second = accept.split(',')
+    if encoding_prioritize == 'client':
+        [first, second] = [second, first]
+    for i in first:
+        for j in second:
+            if(i == j):
+                return i
+    
 ssl_context = None
 if use_https:
     ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
