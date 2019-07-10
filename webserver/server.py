@@ -4,19 +4,6 @@ from . import logging
 from .config import config
 from .load_handler import load_handler
 from .response import HTTPStreamResponse
-host = config.get('host', '127.0.0.1') 
-port = config.get('port', 8080)
-handler = load_handler(config.get('handler', 'static'), 
-                       config.get('handler_opts', {}))
-use_https = config.get('use_https', False)
-ssl_context = None
-if use_https:
-    ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-    ssl_context.load_cert_chain(
-        config.get('https_cert'), 
-        config.get('https_key'),
-        config.get('https_password', None)
-    )
 
 class HTTPRequest:
     def __init__(self, method, uri, http_version, headers):
@@ -27,18 +14,17 @@ class HTTPRequest:
     def set_body(self, body):
         self.body = body
 
-start_re = re.compile('^(.*?) (.*?) (.*?)\r\n(.*?\r\n)?\r\n', re.S)
-header_re = re.compile('(.*?):[\t ]*(.*)')
+start_re = re.compile(b'^(.*?) (.*?) (.*?)\r\n(.*?\r\n)?\r\n', re.S)
+header_re = re.compile(b'(.*?):[\t ]*(.*)')
 def parse_request_start(request):
-    request = request.decode('ascii') # not sure
     method, uri, version, headers = start_re.match(request).groups()
     headers = {
-        k.lower(): v 
+        k.lower().decode('ascii'): v 
         for k, v in (
             header_re.match(h).groups() 
-            for h in headers.split('\r\n') if h)
+            for h in headers.split(b'\r\n') if h)
     } if headers else {}
-    return HTTPRequest(method, uri, version, headers)
+    return HTTPRequest(method.decode('ascii'), uri.decode('ascii'), version.decode('ascii'), headers)
 
 async def connection_handler(reader, writer):
     start_time = time.time()
@@ -74,11 +60,29 @@ async def connection_handler(reader, writer):
     elapsed_time = time.time() - start_time
     logging.measure_time(elapsed_time)
 
+host = config.get('host', '127.0.0.1') 
+port = config.get('port', 8080)
+use_https = config.get('use_https', False)
+ssl_context = None
+if use_https:
+    ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    ssl_context.load_cert_chain(
+        config.get('https_cert'), 
+        config.get('https_key'),
+        config.get('https_password', None)
+    )
+
+async def initialize_async(loop):
+    global handler
+    handler = await load_handler(config.get('handler', 'static'), 
+                       config.get('handler_opts', {}))
+    server = await asyncio.start_server(connection_handler, host, port, loop=loop, ssl=ssl_context)
+    return server
+
 def main():
     try:
         loop = asyncio.get_event_loop()
-        coro = asyncio.start_server(connection_handler, host, port, loop=loop, ssl=ssl_context)
-        server = loop.run_until_complete(coro)
+        server = loop.run_until_complete(initialize_async(loop))
         logging.log_sync(f'Serving on {"https" if use_https else "http"}://{host}:{port}')
         while True:
             try:
@@ -86,6 +90,7 @@ def main():
             except Exception as e:
                 logging.error_sync(e)
     except Exception as e:
+        print(e)
         logging.error_sync('Unrecoverable error')
     except KeyboardInterrupt:
         # logging.log_performance()

@@ -22,13 +22,13 @@ async def handler(request, response):
                 await response.write_body(data)
     else:
         await logging.log(f'[{request.method} {request.uri}] -> 404 NOT FOUND [{path}]')
-        response.send( 
+        await response.send( 
             '404 Not Found', 
             {},
             b'The resource was not found!'
         )
 
-def get_handler(opts):
+async def get_handler(opts):
     global ROOT_DIR
     ROOT_DIR = Path(opts.get('root_dir', Path.cwd()))
     return handler
