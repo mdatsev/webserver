@@ -67,7 +67,7 @@ encoding_list = config.get('encoding', ['identity'])
 encoding_prioritize = config.get('encoding_prioritize', 'server')
 def choose_encoding(accept):
     first = encoding_list
-    second = accept.split(',')
+    second = [e.strip() for e in accept.split(',')]
     if encoding_prioritize == 'client':
         [first, second] = [second, first]
     for i in first:
