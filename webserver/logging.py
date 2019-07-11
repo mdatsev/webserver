@@ -1,13 +1,24 @@
 import aiofiles
 
+def initialize_logger(logfile, level):
+    global LOGFILE
+    LOGFILE = logfile
+
 async def write(*args):
-    async with aiofiles.open('log.txt', mode='w') as f:
-        await f.write(' '.join(args) + '\n')
+    global LOGFILE
+    if LOGFILE:
+        async with aiofiles.open(LOGFILE, mode='a') as f:
+            await f.write(' '.join(args) + '\n')
+    else:
+        print(*args) # todo async?
 
 def write_sync(*args):
-    with open('log.txt', mode='w') as f:
-        f.write(' '.join(args) + '\n')
-
+    global LOGFILE
+    if LOGFILE:
+        with open(LOGFILE, mode='a') as f:
+            f.write(' '.join(args) + '\n')
+    else:
+        print(*args)
 
 n = 0
 avg = 0

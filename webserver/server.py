@@ -84,6 +84,8 @@ if use_https:
         config.get('https_password', None)
     )
 
+logging.initialize_logger(config.get('logfile', None), 0)
+
 async def initialize_async(loop):
     global handler
     handler = await load_handler(config.get('handler', 'static'), 
