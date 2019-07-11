@@ -5,6 +5,8 @@ from .config import config
 from .load_handler import load_handler
 from .response import HTTPStreamResponse
 
+logger = logging.Logger('server')
+
 class HTTPRequest:
     def __init__(self, method, uri, http_version, headers):
         self.method = method
@@ -27,13 +29,13 @@ def parse_request_start(request):
     return HTTPRequest(method.decode('ascii'), uri.decode('ascii'), version.decode('ascii'), headers)
 
 async def connection_handler(reader, writer):
-    start_time = time.time()
+    # start_time = time.time()
     buffer = b''
     body_start = 0
     while True:
         data = await reader.read(1024)
         if not data:
-            await logging.warn('connection closed. aborting')
+            await logger.warn('connection closed. aborting')
             return
         buffer += data
         find_start = max(0, len(buffer) - len(data) - 3)
@@ -57,8 +59,8 @@ async def connection_handler(reader, writer):
         await handler(request, response)
         await response.finish()
     writer.close()
-    elapsed_time = time.time() - start_time
-    logging.measure_time(elapsed_time)
+    # elapsed_time = time.time() - start_time
+    # logger.measure_time(elapsed_time)
 
 host = config.get('host', '127.0.0.1') 
 port = config.get('port', 8080)
@@ -84,7 +86,7 @@ if use_https:
         config.get('https_password', None)
     )
 
-logging.initialize_logger(config.get('logfile', None), 0)
+logging.set_logging_defaults(config.get('logfile', None))
 
 async def initialize_async(loop):
     global handler
@@ -97,15 +99,14 @@ def main():
     try:
         loop = asyncio.get_event_loop()
         server = loop.run_until_complete(initialize_async(loop))
-        logging.log_sync(f'Serving on {"https" if use_https else "http"}://{host}:{port}')
+        logger.log_sync(f'Serving on {"https" if use_https else "http"}://{host}:{port}')
         while True:
             try:
                 loop.run_forever()
             except Exception as e:
-                logging.error_sync(e)
+                logger.error_sync(e)
     except Exception as e:
-        print(e)
-        logging.error_sync('Unrecoverable error')
+        logger.error_sync(e)
     except KeyboardInterrupt:
         # logging.log_performance()
         server.close()

@@ -1,9 +1,11 @@
 import os, sys
 import importlib.util
 import io
-from . import logging
+from logging import Logger
 from .utils import get_path
 from .response import HTTPResponse
+
+logger = Logger()
 
 def load_application(path):
     module_dir = os.path.dirname(path)
@@ -48,7 +50,7 @@ def handler(request):
         if hasattr(result, 'close'):
             result.close()
         response_summary = response.status
-        logging.log(f'[{request.method} {request.uri}] -> {response_summary}')
+        logger.log(f'[{request.method} {request.uri}] -> {response_summary}')
         return response
     
 

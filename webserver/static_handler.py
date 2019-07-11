@@ -1,8 +1,10 @@
 from pathlib import Path
 from .utils import get_path
-from . import logging
+from .logging import Logger
 from .response import HTTPResponse
 import aiofiles
+import inspect
+logger = Logger('handler static')
 
 def get_fs_path(uri):
     global ROOT_DIR
@@ -11,7 +13,7 @@ def get_fs_path(uri):
 async def handler(request, response):
     path = get_fs_path(request.uri)
     if(path.is_file()):
-        await logging.log(f'[{request.method} {request.uri}] -> {path}')
+        await logger.log(f'[{request.method} {request.uri}] -> {path}')
         await response.write_status('200 OK')
         await response.write_headers({'Content-Length': str(path.stat().st_size)})
         async with aiofiles.open(path, mode='rb') as f:
@@ -21,7 +23,7 @@ async def handler(request, response):
                     break
                 await response.write_body(data)
     else:
-        await logging.log(f'[{request.method} {request.uri}] -> 404 NOT FOUND [{path}]')
+        await logger.log(f'[{request.method} {request.uri}] -> 404 NOT FOUND [{path}]')
         await response.send( 
             '404 Not Found', 
             {},

@@ -1,61 +1,48 @@
 import aiofiles
+import datetime
 
-def initialize_logger(logfile, level):
+LOGFILE = None
+def set_logging_defaults(logfile): ## level, include line, time format, message format
     global LOGFILE
     LOGFILE = logfile
 
-async def write(*args):
-    global LOGFILE
-    if LOGFILE:
-        async with aiofiles.open(LOGFILE, mode='a') as f:
-            await f.write(' '.join(args) + '\n')
-    else:
-        print(*args) # todo async?
+class Logger:
+    def __init__(self, name, logfile=LOGFILE):
+        self.name = name
+        self.logfile = logfile
 
-def write_sync(*args):
-    global LOGFILE
-    if LOGFILE:
-        with open(LOGFILE, mode='a') as f:
-            f.write(' '.join(args) + '\n')
-    else:
-        print(*args)
+    async def write(self, msg):
+        if self.logfile:
+            async with aiofiles.open(self.logfile, mode='a') as f:
+                await f.write(msg)
+        else:
+            print(msg) # todo async?
 
-n = 0
-avg = 0
-mint = float('inf')
-maxt = float('-inf')
-def measure_time(t):
-    global n, avg, mint,maxt
-    avg = (t + n*avg)/(n+1)
-    n += 1
-    mint = min(mint, t)
-    maxt = max(maxt, t)    
+    def write_sync(self, msg):
+        if self.logfile:
+            with open(self.logfile, mode='a') as f:
+                f.write(msg)
+        else:
+            print(msg)
+    
+    def format(self, level, msg):
+        time = datetime.datetime.now().time()
+        return f'{time} [{level}] ({self.name}) {msg}'
 
-def format_time(t):
-    return f'{t*1000:.3f}ms per request'
+    async def log(self, message):
+        await self.write(self.format('INFO', message))
 
-async def log_performance():
-    global n
-    if(n > 0):    
-        await write('\n\n',
-            'min:', format_time(mint),
-            'avg:', format_time(avg),
-            'max:', format_time(maxt))
+    async def warn(self, message):
+        await self.write(self.format('WARN', message))
 
-async def log(message):
-    await write(message)
+    async def error(self, message):
+        await self.write(self.format('ERROR', message))
 
-async def warn(message):
-    await write('WARN', message)
+    def log_sync(self, message):
+        self.write_sync(self.format('INFO', message))
 
-async def error(message):
-    await write('ERROR', message)
+    def warn_sync(self, message):
+        self.write_sync(self.format('WARN', message))
 
-def log_sync(message):
-    write_sync(message)
-
-def warn_sync(message):
-    write_sync('WARN', message)
-
-def error_sync(message):
-    write_sync('ERROR', message)
+    def error_sync(self, message):
+        self.write_sync(self.format('ERROR', message))
