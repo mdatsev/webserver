@@ -83,9 +83,16 @@ def get_encoder(encoding):
     else:
         raise Exception(f'unsupported encoding "{encoding}"')
 
+def convert_str(f):
+    def wrapper(self, arg): 
+        if isinstance(arg, str):
+            arg = bytes(arg, 'utf-8')
+        return f(self, arg) 
+    return wrapper 
+
 class HTTPStreamResponse:
     def __init__(self, http_version, writer, encoding='identity'):
-        self.http_version = http_version
+        self.http_version = bytes(http_version, 'ascii')
         self.writer = writer
         self.unsent_headers = {}
         self.encoder = get_encoder(encoding)
@@ -97,9 +104,11 @@ class HTTPStreamResponse:
         self.writer.write(data)
         await self.writer.drain()
 
+    @convert_str    
     async def write_status(self, status):
         assert(not self.status_written)
-        await self.write(bytes(self.http_version + ' ' + status + '\r\n', 'ascii'))
+        self.statuscode, _, self.statustext = status.decode('ascii').partition(' ')
+        await self.write(self.http_version + b' ' + status + b'\r\n')
         self.status_written = True
 
     async def write_headers(self, headers):
@@ -112,6 +121,7 @@ class HTTPStreamResponse:
             raw += bytes(k + ': ', 'ascii') + v + b'\r\n'
         await self.write(raw)
 
+    @convert_str
     async def write_body(self, body):
         if not self.headers_written:
             await self.write_headers(self.unsent_headers)

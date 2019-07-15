@@ -68,3 +68,6 @@ def get_handler(opts):
     BASE_ENV['SERVER_NAME']       = opts['name']
     BASE_ENV['SERVER_PORT']       = opts['port']
     return handler
+
+async def handler_cleanup():
+    pass

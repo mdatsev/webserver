@@ -34,3 +34,6 @@ async def get_handler(opts):
     global ROOT_DIR
     ROOT_DIR = Path(opts.get('root_dir', Path.cwd()))
     return handler
+
+async def handler_cleanup():
+    pass
