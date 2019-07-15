@@ -1,5 +1,6 @@
 import socket, asyncio, ssl, re
 import time
+import datetime
 from . import logging
 from .config import config
 from .load_handler import load_handler
@@ -56,8 +57,25 @@ async def connection_handler(reader, writer):
         await writer.drain()
     else:
         response = HTTPStreamResponse('HTTP/1.1', writer, choose_encoding(request.headers['accept-encoding'].decode('ascii')))
-        await handler(request, response)
-        await response.finish()
+        try:
+            await handler(request, response)
+        except Exception as e:
+            if not response.status_written:
+                await response.send( 
+                    '500 Internal Server Error', 
+                    {},
+                    b'500 Internal Server Error'
+                )
+            else:
+                await logger.warn(e)
+        try:
+            await response.finish()
+        except Exception as e:
+            await logger.warn(e)
+    await logger.log(
+        writer.get_extra_info('peername')[0],
+        f"{request.method} {request.uri} {request.http_version}".replace('"', '\\"'),
+        response.statuscode)
     writer.close()
     # elapsed_time = time.time() - start_time
     # logger.measure_time(elapsed_time)
@@ -86,20 +104,22 @@ if use_https:
         config.get('https_password', None)
     )
 
-logging.set_logging_defaults(config.get('logfile', None))
+logging.set_logging_defaults(config.get('access_log', None), config.get('error_log', None))
 
 async def initialize_async(loop):
     global handler
-    handler = await load_handler(config.get('handler', 'static'), 
+    global handler_cleanup
+    handler, handler_cleanup = await load_handler(config.get('handler', 'static'), 
                        config.get('handler_opts', {}))
     server = await asyncio.start_server(connection_handler, host, port, loop=loop, ssl=ssl_context)
     return server
 
 def main():
+    global handler_cleanup
     try:
         loop = asyncio.get_event_loop()
         server = loop.run_until_complete(initialize_async(loop))
-        logger.log_sync(f'Serving on {"https" if use_https else "http"}://{host}:{port}')
+        logger.info_sync(f'Serving on {"https" if use_https else "http"}://{host}:{port}')
         while True:
             try:
                 loop.run_forever()
@@ -110,5 +130,6 @@ def main():
     except KeyboardInterrupt:
         # logging.log_performance()
         server.close()
+        loop.run_until_complete(handler_cleanup())
         loop.run_until_complete(server.wait_closed())
         loop.close()

@@ -69,9 +69,9 @@ async def handler(request, response):
     while True:
         rtype, data = await get_record(rid)
         if RecordType(rtype) == RecordType.STDOUT:
-            if data.startswith(b'Status:'):
+            if data.startswith(b'Status: '):
                 status, sep, data = data.partition(b'\r\n')
-                await response.write_status(status[7:])
+                await response.write_status(status[8:])
             await response.write(data)
         if RecordType(rtype) == RecordType.END_REQUEST:
             break
